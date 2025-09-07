@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8">
+  <title>🎄 圣诞礼物转盘 🎁</title>
+  <style>
+    body {
+      margin: 0;
+      text-align: center;
+      background: linear-gradient(#0d1b2a, #1b263b, #415a77); /* 深蓝圣诞夜背景 */
+      overflow: hidden;
+      font-family: 'Arial', sans-serif;
+      color: white;
+    }
+    h1 {
+      margin-top: 20px;
+      text-shadow: 2px 2px 5px black;
+    }
+    canvas {
+      margin-top: 20px;
+      background: rgba(255,255,255,0.15);
+      border-radius: 50%;
+      box-shadow: 0 0 20px rgba(0,0,0,0.6);
+    }
+    #message {
+      font-size: 24px;
+      margin-top: 20px;
+      font-weight: bold;
+      text-shadow: 2px 2px 5px black;
+    }
+    /* ❄️ 雪花样式 */
+    .snowflake {
+      position: fixed;
+      top: -10px;
+      color: white;
+      font-size: 1em;
+      user-select: none;
+      pointer-events: none;
+      animation: fall linear infinite;
+    }
+    @keyframes fall {
+      0% { transform: translateY(0); opacity: 1; }
+      100% { transform: translateY(100vh); opacity: 0; }
+    }
+  </style>
+</head>
+<body>
+  <h1>🎄 圣诞礼物转盘 🎁</h1>
+  <canvas id="wheelCanvas" width="500" height="500"></canvas>
+  <div id="message">请触碰你的 NFC 卡来转动转盘</div>
+
+  <!-- 背景音乐 -->
+  <audio id="bgMusic" autoplay loop>
+    <source src="https://www.bensound.com/bensound-music/bensound-christmas.mp3" type="audio/mpeg">
+  </audio>
+
+  <script>
+    // 🎅 参与者名单
+    const participants = [
+      { name: "Jean", gender: "M", active: true },
+      { name: "Jann", gender: "F", active: true },
+      { name: "Ming", gender: "M", active: true },
+      { name: "JoonF", gender: "F", active: true },
+      { name: "Joon", gender: "M", active: true }
+    ];
+
+    // 🎅 NFC UID → 参与者
+    const cardToParticipant = {
+      "04826101DD4D03": "Jean",
+      "0472FB014F4D03": "Jann",
+      "0472B8012C4D03": "Ming",
+      "04729701D04D03": "JoonF",
+      "04823101744D03": "Joon"
+    };
+
+    // 🎅 固定送礼关系
+    const giftMapping = {
+      "Jean": "JoonF",
+      "Jann": "Ming",
+      "Ming": "Joon",
+      "JoonF": "Jean",
+      "Joon": "Jann"
+    };
+
+    let usedCards = new Set();
+
+    // 🎨 绘制转盘
+    const canvas = document.getElementById("wheelCanvas");
+    const ctx = canvas.getContext("2d");
+    const centerX = canvas.width / 2;
+    const centerY = canvas.height / 2;
+    const radius = 200;
+
+    function drawWheel() {
+      const activeParticipants = participants.filter(p => p.active);
+      const sliceAngle = 2 * Math.PI / activeParticipants.length;
+
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      activeParticipants.forEach((p, i) => {
+        ctx.beginPath();
+        ctx.moveTo(centerX, centerY);
+        ctx.arc(centerX, centerY, radius, i * sliceAngle, (i + 1) * sliceAngle);
+        ctx.closePath();
+        ctx.fillStyle = p.gender === "F" ? "#ff99cc" : "#66ccff";
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.save();
+        ctx.translate(centerX, centerY);
+        ctx.rotate((i + 0.5) * sliceAngle);
+        ctx.textAlign = "right";
+        ctx.fillStyle = "black";
+        ctx.font = "20px Arial";
+        ctx.fillText(p.name, radius - 10, 10);
+        ctx.restore();
+      });
+    }
+
+    drawWheel();
+
+    // 🎡 转盘逻辑
+    function spinWheel(userName) {
+      const targetName = giftMapping[userName];
+      if (!targetName) {
+        document.getElementById("message").innerText = "⚠️ 未定义的送礼对象";
+        return;
+      }
+
+      const chosen = participants.find(p => p.name === targetName);
+      if (chosen) chosen.active = false;
+      drawWheel();
+
+      document.getElementById("message").innerText =
+        userName + " 🎁 要送礼物给 👉 " + targetName;
+
+      if (participants.every(p => !p.active)) {
+        setTimeout(() => {
+          document.getElementById("message").innerText = "🎉 全部完成！刷新开始新一轮 🎉";
+        }, 2000);
+      }
+    }
+
+    // 模拟 NFC
+    document.body.addEventListener("click", () => {
+      let uid = prompt("请输入 NFC UID (例如: 04826101DD4D03)");
+      if (!uid) return;
+      if (usedCards.has(uid)) {
+        alert("❌ 这张卡已经用过了！");
+        return;
+      }
+      if (cardToParticipant[uid]) {
+        usedCards.add(uid);
+        spinWheel(cardToParticipant[uid]);
+      } else {
+        alert("❌ 未知的卡片UID");
+      }
+    });
+
+    // ⛄ 生成雪花
+    function createSnowflake() {
+      const snowflake = document.createElement("div");
+      snowflake.classList.add("snowflake");
+      snowflake.innerText = "❄";
+      snowflake.style.left = Math.random() * window.innerWidth + "px";
+      snowflake.style.fontSize = (Math.random() * 20 + 10) + "px";
+      snowflake.style.animationDuration = (Math.random() * 5 + 5) + "s";
+      document.body.appendChild(snowflake);
+
+      setTimeout(() => {
+        snowflake.remove();
+      }, 10000);
+    }
+
+    setInterval(createSnowflake, 200);
+  </script>
+</body>
+</html>
